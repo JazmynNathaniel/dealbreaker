@@ -66,7 +66,14 @@ async function main() {
   await call("Network.enable");
   await call("Page.enable");
   await call("Page.navigate", { url: appUrl });
-  await delay(500);
+  const expectedOrigin = new URL(appUrl).origin;
+  let reachedOrigin = false;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    await delay(100);
+    reachedOrigin = await evaluate(`location.origin === ${JSON.stringify(expectedOrigin)}`);
+    if (reachedOrigin) break;
+  }
+  if (!reachedOrigin) throw new Error(`Browser did not reach ${expectedOrigin}`);
   await evaluate("localStorage.removeItem('dealbreaker-profile-v1')");
   await call("Page.reload", { ignoreCache: true });
   let appReady = false;
@@ -77,11 +84,18 @@ async function main() {
   }
   if (!appReady) throw new Error("App did not reach its ready state");
 
+  let initialPhotoReady = false;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    initialPhotoReady = await evaluate("document.querySelector('#profilePhoto')?.complete && document.querySelector('#profilePhoto')?.naturalWidth > 0");
+    if (initialPhotoReady) break;
+    await delay(100);
+  }
+
   const initial = await evaluate(`({
     title: document.title,
     profile: document.querySelector('#profileName')?.textContent,
     cardVisible: getComputedStyle(document.querySelector('#profileCard')).display !== 'none',
-    photoLoaded: document.querySelector('#profilePhoto')?.complete && document.querySelector('#profilePhoto')?.naturalWidth > 0,
+    photoLoaded: ${initialPhotoReady},
     onboardingVisible: !document.querySelector('#onboarding')?.hidden,
     onboardingStep: document.querySelector('#onboardingStepLabel')?.textContent
   })`);

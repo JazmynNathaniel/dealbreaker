@@ -562,14 +562,15 @@ async function sendSelection(selection) {
       method: "POST",
       body: JSON.stringify(selection),
     });
+    sendingMessage = false;
     renderThread(payload);
-    const refreshed = await apiFetch("/api/conversations");
-    conversations = refreshed.conversations;
+    apiFetch("/api/conversations")
+      .then((refreshed) => { conversations = refreshed.conversations; })
+      .catch(() => {});
   } catch (error) {
+    sendingMessage = false;
     els.replyStatus.textContent = error.message;
     $$(".reply-choice, .gif-choice").forEach((button) => { button.disabled = false; });
-  } finally {
-    sendingMessage = false;
   }
 }
 

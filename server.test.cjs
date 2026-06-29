@@ -18,6 +18,8 @@ test("health endpoint reports the local storage adapter", async () => {
   const response = await fetch(`${baseUrl}/api/health`);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { ok: true, storage: "memory" });
+  const config = await fetch(`${baseUrl}/api/config`).then((result) => result.json());
+  assert.deepEqual(config, { giphyApiKey: null });
 });
 
 test("conversation messages persist for a browser visitor", async () => {

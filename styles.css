@@ -139,6 +139,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
 .badge { display: grid; place-items: center; width: 21px; height: 21px; color: white; background: var(--coral); border: 1.5px solid var(--ink); border-radius: 50%; font-size: 10px; }
 .avatar-button { width: 52px; height: 52px; border-radius: 50%; border: 2px solid var(--ink); background: var(--blue); color: white; font-size: 10px; font-weight: 800; position: relative; box-shadow: 3px 3px 0 var(--ink); }
 .online-dot { position: absolute; width: 13px; height: 13px; border-radius: 50%; background: #5bf088; border: 2px solid var(--ink); right: -2px; bottom: 2px; }
+.subscription-button { cursor: pointer; min-height: 45px; display: flex; align-items: center; gap: 8px; border: 2px solid var(--ink); background: var(--yellow); box-shadow: 3px 3px 0 var(--ink); padding: 6px 10px 6px 7px; transform: rotate(-1deg); }
+.subscription-button:hover { transform: translate(-1px,-2px) rotate(-1deg); box-shadow: 5px 5px 0 var(--ink); }
+.subscription-icon { width: 29px; height: 29px; display: grid; place-items: center; border: 1.5px solid var(--ink); border-radius: 50%; color: white; background: var(--coral); font-size: 17px; }
+.subscription-copy { display: grid; gap: 2px; text-align: left; }
+.subscription-copy b { font: 800 9px/1 "Space Grotesk", sans-serif; letter-spacing: .5px; }
+.subscription-copy small { font-size: 6px; opacity: .62; text-transform: uppercase; }
 
 .app-shell {
   width: min(1510px, 94vw);
@@ -205,9 +211,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
 .compatibility small { display: block; font-size: 8px; opacity: .57; }
 
 .decision-zone { width: calc(100% - 16px); margin-top: 26px; }
-.swap-warning { text-align: center; margin: 0 0 8px; text-transform: uppercase; font-size: 8px; font-weight: 800; letter-spacing: .7px; }
-.swap-warning span { color: var(--coral-dark); }
-.swap-warning i { color: var(--blue); margin: 0 5px; }
 .decision-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
 .decision { min-height: 66px; border: 2px solid var(--ink); border-radius: 10px; padding: 9px 15px; display: flex; align-items: center; gap: 11px; cursor: pointer; box-shadow: 4px 4px 0 var(--ink); transition: transform .12s ease, box-shadow .12s ease, order .35s ease; }
 .decision:hover { transform: translate(-1px, -2px); box-shadow: 6px 6px 0 var(--ink); }
@@ -329,11 +332,22 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
 .reply-choice::before { content: "→"; color: var(--coral-dark); margin-right: 7px; }
 .reply-choice:hover { background: var(--pink); transform: translateX(2px); }
 .reply-choice:disabled, .gif-choice:disabled { cursor: wait; opacity: .5; }
-.gif-picker { grid-template-columns: repeat(3,1fr); gap: 6px; margin-top: 11px; }
-.gif-picker:not([hidden]) { display: grid; }
+.gif-picker { margin-top: 11px; }
+.gif-picker:not([hidden]) { display: block; }
+.gif-search { display: grid; gap: 6px; margin-bottom: 9px; }
+.gif-search label { font-size: 7px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; }
+.gif-search > div { display: grid; grid-template-columns: 1fr auto; }
+.gif-search input { min-width: 0; border: 1.5px solid var(--ink); background: white; padding: 8px 9px; font-size: 9px; }
+.gif-search button { cursor: pointer; border: 1.5px solid var(--ink); border-left: 0; background: var(--blue); color: white; padding: 7px 9px; font-size: 7px; font-weight: 900; text-transform: uppercase; }
+.gif-results { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
 .gif-choice { min-width: 0; cursor: pointer; border: 1.5px solid var(--ink); background: var(--cream); padding: 0; overflow: hidden; box-shadow: 2px 2px 0 var(--ink); }
 .gif-choice img { width: 100%; aspect-ratio: 1; display: block; object-fit: cover; }
 .gif-choice span { display: block; padding: 5px; font-size: 6px; font-weight: 800; line-height: 1.2; }
+.gif-empty { grid-column: 1 / -1; padding: 18px 10px; border: 1.5px dashed var(--ink); text-align: center; font-size: 8px; line-height: 1.4; opacity: .65; }
+.giphy-credit { display: block; width: fit-content; margin: 9px 0 0 auto; color: var(--ink); font-size: 7px; font-weight: 900; letter-spacing: .7px; }
+.subscription-ledger { display: grid; gap: 7px; margin: 20px 0 4px; border-top: 1.5px dashed var(--ink); padding-top: 14px; }
+.subscription-ledger div { display: flex; justify-content: space-between; gap: 20px; font-size: 9px; }
+.subscription-ledger strong { color: var(--coral-dark); text-transform: uppercase; }
 .response-ration > p { min-height: 10px; margin: 9px 0 0; text-align: center; font-size: 7px; opacity: .55; }
 .drawer-note { flex: 0 0 auto; margin: 13px 0 0; text-align: center; font-size: 7px; opacity: .5; }
 .drawer.thread-open .drawer-note { display: none; }
@@ -363,6 +377,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
   .brand-word { font-size: 19px; }
   .dignity { display: none; }
   .nav-button span:not(.nav-icon), .nav-button .badge { display: none; }
+  .subscription-copy { display: none; }
+  .subscription-button { min-height: 41px; padding: 5px; border-radius: 50%; }
+  .subscription-icon { border: 0; background: transparent; color: var(--ink); }
   .top-nav { gap: 4px; }
   .avatar-button { width: 43px; height: 43px; }
   .app-shell { width: min(100% - 30px, 540px); display: block; padding: 35px 0 50px; }
@@ -388,6 +405,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
 @media (max-width: 480px) {
   .brand-word { font-size: 16px; }
   .nav-button { padding: 5px; }
+  .subscription-button { display: flex; }
   .avatar-button { display: none; }
   .intro { margin-bottom: 25px; }
   .eyebrow { margin-bottom: 15px; }

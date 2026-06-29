@@ -50,6 +50,10 @@
       </div>
 
       <nav class="top-nav" aria-label="Primary navigation">
+        <button class="subscription-button" id="subscriptionButton" aria-label="Explore Nothing Plus, our subscription that provides nothing">
+          <span class="subscription-icon" aria-hidden="true">♛</span>
+          <span class="subscription-copy"><b>NOTHING+</b><small>$14.99 / why</small></span>
+        </button>
         <button class="nav-button" data-panel="inbox">
           <span class="nav-icon" aria-hidden="true">✉</span>
           <span>Bad decisions</span>
@@ -133,7 +137,6 @@
         </article>
 
         <div class="decision-zone">
-          <p class="swap-warning"><span id="swapTimer">Buttons swap in 08s</span> <i>•</i> Stay anxious</p>
           <div class="decision-buttons" id="decisionButtons">
             <button class="decision reject" id="rejectButton" data-action="reject">
               <span class="button-icon">×</span>
@@ -179,8 +182,8 @@
 
         <section class="upgrade-card">
           <span class="premium-crown">♛</span>
-          <div><b>Make it worse</b><small>Unlock Dealbreaker Plus</small></div>
-          <button id="upgradeButton" aria-label="Learn about Dealbreaker Plus">→</button>
+          <div><b>Monetize the void</b><small>Unlock Nothing+</small></div>
+          <button id="upgradeButton" aria-label="Learn about Nothing Plus">→</button>
         </section>
 
         <p class="sidebar-quote">“I met the person of my dreams. Then the app refreshed.” <span>— Cam, 34</span></p>
@@ -220,7 +223,14 @@
             <button id="gifToggle" type="button">GIF escape hatch</button>
           </div>
           <div class="reply-options" id="replyOptions"></div>
-          <div class="gif-picker" id="gifPicker" hidden></div>
+          <div class="gif-picker" id="gifPicker" hidden>
+            <form class="gif-search" id="gifSearchForm">
+              <label for="gifSearchInput">Search for a moving substitute for language</label>
+              <div><input id="gifSearchInput" type="search" maxlength="80" placeholder="e.g. nervous raccoon" autocomplete="off"><button type="submit">Summon</button></div>
+            </form>
+            <div class="gif-results" id="gifResults"></div>
+            <a class="giphy-credit" href="https://giphy.com" target="_blank" rel="noreferrer">POWERED BY GIPHY</a>
+          </div>
           <p id="replyStatus">Original thought has been disabled for quality assurance.</p>
         </div>
       </section>

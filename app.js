@@ -140,7 +140,6 @@ const els = {
   compatibilityBar: $("#compatibilityBar"),
   compatibilityReason: $("#compatibilityReason"),
   decisionButtons: $("#decisionButtons"),
-  swapTimer: $("#swapTimer"),
   dignityValue: $("#dignityValue"),
   dignityBar: $("#dignityBar"),
   modalBackdrop: $("#modalBackdrop"),
@@ -161,6 +160,9 @@ const els = {
   threadMessages: $("#threadMessages"),
   replyOptions: $("#replyOptions"),
   gifPicker: $("#gifPicker"),
+  gifResults: $("#gifResults"),
+  gifSearchForm: $("#gifSearchForm"),
+  gifSearchInput: $("#gifSearchInput"),
   replyStatus: $("#replyStatus"),
   drawerTitle: $("#drawerTitle"),
   drawerKicker: $("#drawerKicker"),
@@ -227,6 +229,9 @@ let editingProfile = false;
 let conversations = [];
 let activeConversation = null;
 let sendingMessage = false;
+let giphyApiKey = null;
+let giphyConfigLoaded = false;
+let giphyRequestId = 0;
 
 function getVisitorId() {
   try {
@@ -423,7 +428,6 @@ function handleDecision(event) {
   const visualSide = event.currentTarget === $("#rejectButton") ? "left" : "right";
   const intendedAction = visualSide === "left" ? "reject" : "accept";
   const action = buttonsSwapped ? (intendedAction === "reject" ? "accept" : "reject") : intendedAction;
-  if (buttonsSwapped) toast("We swapped the consequences too. Tiny print!");
   action === "accept" ? acceptProfile() : rejectProfile();
 }
 
@@ -431,7 +435,6 @@ function swapButtons() {
   buttonsSwapped = !buttonsSwapped;
   els.decisionButtons.classList.toggle("swapped", buttonsSwapped);
   secondsToSwap = 8;
-  toast(buttonsSwapped ? "Buttons swapped. Muscle memory is the enemy." : "Buttons restored. Trust remains damaged.");
 }
 
 function askMom() {
@@ -507,17 +510,74 @@ function messageMarkup(message) {
   `;
 }
 
-function renderThread(payload) {
-  els.threadMessages.innerHTML = payload.messages.map(messageMarkup).join("");
-  els.replyOptions.innerHTML = payload.replyOptions.map((option) => `
-    <button class="reply-choice" data-reply-option="${escapeHTML(option.id)}">${escapeHTML(option.body)}</button>
-  `).join("");
-  els.gifPicker.innerHTML = payload.gifOptions.map((gif) => `
+function renderGifChoices(gifs, emptyMessage = "No moving pictures were willing to participate.") {
+  if (!gifs.length) {
+    els.gifResults.innerHTML = `<div class="gif-empty">${escapeHTML(emptyMessage)}</div>`;
+    return;
+  }
+  els.gifResults.innerHTML = gifs.map((gif) => `
     <button class="gif-choice" data-gif-option="${escapeHTML(gif.id)}" aria-label="Send GIF: ${escapeHTML(gif.label)}">
       <img src="${escapeHTML(gif.url)}" alt="${escapeHTML(gif.label)}" loading="lazy">
       <span>${escapeHTML(gif.label)}</span>
     </button>
   `).join("");
+}
+
+async function loadGiphyConfig() {
+  if (giphyConfigLoaded) return giphyApiKey;
+  giphyConfigLoaded = true;
+  try {
+    const response = await fetch("/api/config", { headers: { "x-visitor-id": visitorId } });
+    if (response.ok) ({ giphyApiKey } = await response.json());
+  } catch {}
+  return giphyApiKey;
+}
+
+async function searchGiphy(query = "") {
+  const requestId = ++giphyRequestId;
+  const apiKey = await loadGiphyConfig();
+  if (!apiKey || requestId !== giphyRequestId) {
+    els.replyStatus.textContent = "GIPHY is unavailable. The emergency GIF ration remains.";
+    return;
+  }
+
+  els.gifResults.innerHTML = `<div class="inbox-loading"><span></span> Consulting the moving-image oracle…</div>`;
+  els.replyStatus.textContent = query ? `Searching GIPHY for “${query}”…` : "Loading trending emotional substitutes…";
+  const endpoint = query ? "search" : "trending";
+  const parameters = new URLSearchParams({
+    api_key: apiKey,
+    limit: "9",
+    rating: "pg-13",
+    bundle: "messaging_non_clips",
+    customer_id: visitorId,
+  });
+  if (query) parameters.set("q", query);
+
+  try {
+    const response = await fetch(`https://api.giphy.com/v1/gifs/${endpoint}?${parameters}`);
+    if (!response.ok) throw new Error("GIPHY declined to move at this time.");
+    const payload = await response.json();
+    if (requestId !== giphyRequestId) return;
+    const gifs = payload.data.map((gif) => ({
+      id: gif.id,
+      label: gif.title || "Untitled emotional evidence",
+      url: gif.images?.fixed_width?.url || gif.images?.fixed_height?.url || gif.images?.original?.url,
+    })).filter((gif) => gif.id && gif.url);
+    renderGifChoices(gifs, `No GIFs understood “${query}.” Honestly, fair.`);
+    els.replyStatus.textContent = query ? "Pick one before context improves." : "Trending because language has failed at scale.";
+  } catch (error) {
+    if (requestId !== giphyRequestId) return;
+    els.replyStatus.textContent = error.message;
+    els.gifResults.innerHTML = `<div class="gif-empty">The GIF oracle is buffering spiritually.</div>`;
+  }
+}
+
+function renderThread(payload) {
+  els.threadMessages.innerHTML = payload.messages.map(messageMarkup).join("");
+  els.replyOptions.innerHTML = payload.replyOptions.map((option) => `
+    <button class="reply-choice" data-reply-option="${escapeHTML(option.id)}">${escapeHTML(option.body)}</button>
+  `).join("");
+  renderGifChoices(payload.gifOptions);
   els.replyStatus.textContent = "Original thought has been disabled for quality assurance.";
   window.setTimeout(() => { els.threadMessages.scrollTop = els.threadMessages.scrollHeight; }, 0);
 }
@@ -779,6 +839,24 @@ function openAccount() {
   `);
 }
 
+function openNothingPlus() {
+  openModal(`
+    <span class="modal-kicker">A premium absence</span>
+    <h2>Subscribe to Nothing+.</h2>
+    <p>For $14.99 every month, enjoy the exact same app with the warm administrative knowledge that a recurring charge exists.</p>
+    <div class="subscription-ledger">
+      <div><span>Additional matches</span><strong>0</strong></div>
+      <div><span>Improved recommendations</span><strong>Absolutely not</strong></div>
+      <div><span>Exclusive badge</span><strong>Visible only to accounting</strong></div>
+      <div><span>Cancellation process</span><strong>Emotionally seasonal</strong></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-action" id="fakePurchase">Begin paying for the concept of access</button>
+      <button class="modal-action secondary" id="stayBasic">Keep this money for one medium sandwich</button>
+    </div>
+  `);
+}
+
 $("#photoPrev").addEventListener("click", () => changePhoto(-1));
 $("#photoNext").addEventListener("click", () => changePhoto(1));
 $("#rejectButton").addEventListener("click", handleDecision);
@@ -804,6 +882,11 @@ els.gifPicker.addEventListener("click", (event) => {
 $("#gifToggle").addEventListener("click", () => {
   els.gifPicker.hidden = !els.gifPicker.hidden;
   $("#gifToggle").textContent = els.gifPicker.hidden ? "GIF escape hatch" : "Hide visual panic";
+  if (!els.gifPicker.hidden) searchGiphy(els.gifSearchInput.value.trim());
+});
+els.gifSearchForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  searchGiphy(els.gifSearchInput.value.trim());
 });
 
 $("[data-panel='account']").addEventListener("click", openAccount);
@@ -908,12 +991,8 @@ $("#termsButton").addEventListener("click", () => openModal(`
   <div class="modal-actions"><button class="modal-action" id="acceptTerms">Accept under mild duress</button></div>
 `));
 
-$("#upgradeButton").addEventListener("click", () => openModal(`
-  <span class="modal-kicker">Dealbreaker Plus</span>
-  <h2>Pay more. Feel the same.</h2>
-  <p>Unlock read receipts you cannot turn off, six additional ads, and the ability to see exactly who rejected you in 4K.</p>
-  <div class="modal-actions"><button class="modal-action" id="fakePurchase">Worsen my experience — $18.99</button><button class="modal-action secondary" id="stayBasic">Remain merely unhappy</button></div>
-`));
+$("#subscriptionButton").addEventListener("click", openNothingPlus);
+$("#upgradeButton").addEventListener("click", openNothingPlus);
 
 $$('[data-modal]').forEach((button) => button.addEventListener("click", () => {
   const kind = button.dataset.modal;
@@ -927,8 +1006,8 @@ $$('[data-modal]').forEach((button) => button.addEventListener("click", () => {
 
 document.addEventListener("click", (event) => {
   if (event.target.id === "acceptTerms") { closeModal(); toast("Perception enabled. Sorry."); }
-  if (event.target.id === "fakePurchase") { closeModal(); toast("Payment failed successfully."); updateDignity(-4); }
-  if (event.target.id === "stayBasic") { closeModal(); toast("A financially responsible romantic. Suspicious."); }
+  if (event.target.id === "fakePurchase") { closeModal(); toast("Payment failed successfully. Benefits remain fully delivered."); updateDignity(-4); }
+  if (event.target.id === "stayBasic") { closeModal(); toast("Sandwich liquidity preserved."); }
   if (event.target.id === "editProfile") { closeModal(); startOnboarding(true); }
   if (event.target.id === "restartProfile") {
     try { localStorage.removeItem("dealbreaker-profile-v1"); } catch {}
@@ -949,7 +1028,6 @@ document.addEventListener("keydown", (event) => {
 
 window.setInterval(() => {
   secondsToSwap -= 1;
-  els.swapTimer.textContent = `Buttons swap in ${String(secondsToSwap).padStart(2, "0")}s`;
   if (secondsToSwap <= 0) swapButtons();
 }, 1000);
 

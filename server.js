@@ -5,6 +5,7 @@ const { Pool } = require("pg");
 
 const app = express();
 const databaseUrl = process.env.DATABASE_URL;
+const giphyApiKey = process.env.GIPHY_API_KEY || "";
 const pool = databaseUrl ? new Pool({
   connectionString: databaseUrl,
   max: Number(process.env.DB_POOL_MAX) || 5,
@@ -274,7 +275,31 @@ function conversationPayload(profileKey, messages) {
   };
 }
 
-function resolveSelection(profileKey, messageCount, selection = {}) {
+async function resolveGiphyGif(gifId, visitorId) {
+  if (!giphyApiKey || !/^[a-zA-Z0-9_-]{1,64}$/.test(gifId || "")) return null;
+  try {
+    const parameters = new URLSearchParams({
+      api_key: giphyApiKey,
+      rating: "pg-13",
+      customer_id: visitorId,
+    });
+    const response = await fetch(`https://api.giphy.com/v1/gifs/${encodeURIComponent(gifId)}?${parameters}`, {
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const gif = payload.data;
+    const mediaUrl = gif?.images?.fixed_height?.url || gif?.images?.fixed_width?.url || gif?.images?.original?.url;
+    if (!gif?.id || !mediaUrl) return null;
+    const label = (gif.title || "Untitled emotional evidence").slice(0, 200);
+    if (gif.analytics?.onsend?.url) fetch(gif.analytics.onsend.url).catch(() => {});
+    return { body: `[GIF] ${label}`, type: "gif", mediaUrl, mediaAlt: label, selectedOption: gif.id };
+  } catch {
+    return null;
+  }
+}
+
+async function resolveSelection(profileKey, messageCount, visitorId, selection = {}) {
   if (selection.kind === "response") {
     const option = availableResponses(profileKey, messageCount).find((item) => item.id === selection.optionId);
     if (option) return { body: option.body, type: "text", mediaUrl: null, mediaAlt: null, selectedOption: option.id };
@@ -282,6 +307,8 @@ function resolveSelection(profileKey, messageCount, selection = {}) {
   if (selection.kind === "gif") {
     const gif = gifChoices.find((item) => item.id === selection.gifId);
     if (gif) return { body: `[GIF] ${gif.label}`, type: "gif", mediaUrl: gif.url, mediaAlt: gif.label, selectedOption: gif.id };
+    const giphyGif = await resolveGiphyGif(selection.gifId, visitorId);
+    if (giphyGif) return giphyGif;
   }
   const error = new Error("That response was not among your current bad options.");
   error.status = 400;
@@ -322,7 +349,7 @@ async function createMessages(visitorId, conversationId, selection) {
   if (!pool) {
     const conversation = ensureMemoryVisitor(visitorId).find((item) => item.id === conversationId);
     if (!conversation) return null;
-    const selected = resolveSelection(conversation.profile_key, conversation.messages.length, selection);
+    const selected = await resolveSelection(conversation.profile_key, conversation.messages.length, visitorId, selection);
     const now = Date.now();
     const added = [
       memoryMessage("you", selected.body, new Date(now).toISOString(), selected),
@@ -351,7 +378,7 @@ async function createMessages(visitorId, conversationId, selection) {
     }
     const countResult = await client.query("SELECT COUNT(*)::INTEGER AS count FROM messages WHERE conversation_id = $1", [conversationId]);
     const messageCount = countResult.rows[0].count;
-    const selected = resolveSelection(conversation.rows[0].profile_key, messageCount, selection);
+    const selected = await resolveSelection(conversation.rows[0].profile_key, messageCount, visitorId, selection);
     await client.query(`
       INSERT INTO messages (conversation_id, sender, body, message_type, media_url, media_alt, selected_option)
       VALUES ($1, 'you', $2, $3, $4, $5, $6)
@@ -384,6 +411,11 @@ app.get("/api/health", async (_request, response, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+app.get("/api/config", (_request, response) => {
+  // GIPHY requires Web Search calls from the client, so its web API key is intentionally public.
+  response.json({ giphyApiKey: giphyApiKey || null });
 });
 
 app.get("/api/conversations", async (request, response, next) => {

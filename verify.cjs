@@ -131,6 +131,15 @@ async function main() {
     sabotage: document.querySelector('#sabotageDial').value
   })`);
 
+  await evaluate("document.querySelector('#subscriptionButton').click()");
+  await delay(80);
+  const subscription = await evaluate(`({
+    opens: document.querySelector('#modalContent').innerText.includes('Subscribe to Nothing+'),
+    promisesNothing: document.querySelector('#modalContent').innerText.includes('Additional matches')
+      && document.querySelector('#modalContent').innerText.includes('0')
+  })`);
+  await evaluate("document.querySelector('#modalClose').click()");
+
   await evaluate("document.querySelector('#acceptButton').click()");
   await delay(250);
   const matchTrial = await evaluate("document.querySelector('#modalContent').innerText.includes('Prove you')");
@@ -212,12 +221,24 @@ async function main() {
     headers: { 'content-type': 'application/json', 'x-visitor-id': visitorId },
     body: JSON.stringify({ body: 'I reject your constraints.' })
   }).then((response) => response.status)`);
+  const silentSwap = await evaluate(`(() => {
+    const toastCount = document.querySelectorAll('.toast').length;
+    const before = document.querySelector('#decisionButtons').classList.contains('swapped');
+    swapButtons();
+    return {
+      changed: before !== document.querySelector('#decisionButtons').classList.contains('swapped'),
+      noNewToast: toastCount === document.querySelectorAll('.toast').length,
+      indicatorRemoved: !document.querySelector('.swap-warning') && !document.body.innerText.includes('Buttons swap in')
+    };
+  })()`);
 
   const report = {
     initial,
     onboarding: { review: onboardingReview, complete: onboardingComplete },
+    subscription,
     flows: { matchTrial, mutual, secondProfile, rejectionGuilt, thirdProfile, generatedProfilesLoaded },
     messaging: { inboxReady, threadReady, constrainedComposer, selectedReplyRendered, gifRendered, arbitraryTextStatus },
+    silentSwap,
     exceptions,
     failedRequests,
   };
@@ -237,6 +258,8 @@ async function main() {
     && onboardingComplete.initials === "TL"
     && onboardingComplete.savedName === "Test Liability"
     && onboardingComplete.sabotage === "88"
+    && subscription.opens
+    && subscription.promisesNothing
     && matchTrial
     && mutual
     && secondProfile === "Theo"
@@ -251,6 +274,9 @@ async function main() {
     && selectedReplyRendered
     && gifRendered
     && arbitraryTextStatus === 400
+    && silentSwap.changed
+    && silentSwap.noNewToast
+    && silentSwap.indicatorRemoved
     && exceptions.length === 0
     && failedAppRequests.length === 0;
 

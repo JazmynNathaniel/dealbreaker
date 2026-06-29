@@ -2,16 +2,34 @@
 
 The dating app that knows nothing about love and too much about your screen brightness.
 
-The first visit now includes a five-step profile creation interrogation. Profile details and the recommendation sabotage level are saved locally in the browser; use the avatar to edit or restart the process. The feed contains seven fake profiles, and the sabotage control intentionally inverts and degrades their compatibility scores.
+The first visit includes a five-step profile creation interrogation. Profile details and the recommendation sabotage level are saved locally in the browser; use the avatar to edit or restart the process. The feed contains seven fake profiles, and the sabotage control intentionally inverts and degrades their compatibility scores.
+
+Messaging is intentionally hostile to free expression. The server offers three rotating canned responses and three curated GIFs; arbitrary text is rejected by the API. Conversations and messages persist in PostgreSQL when `DATABASE_URL` is configured. Without it, the same API uses an in-memory sandbox for local development.
 
 ## Run it
 
-Open `index.html` directly in a browser, or serve this directory with any static web server:
+Install dependencies and run the Node service:
 
 ```powershell
-python -m http.server 4173
+npm install
+npm start
 ```
 
-Then visit `http://localhost:4173`.
+Then visit `http://localhost:10000`.
 
-No build step and no dependencies are required.
+## Test it
+
+```powershell
+npm test
+```
+
+## Render
+
+The included `render.yaml` defines a Node Web Service and a free Render Postgres database. For an existing manually-created service, use:
+
+- Build Command: `npm install`
+- Start Command: `npm start`
+- Health Check Path: `/api/health`
+- Environment variable: `DATABASE_URL` set to the database's internal connection URL
+
+Keep the web service and database in the same Render region.

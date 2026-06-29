@@ -203,15 +203,28 @@
 
     <aside class="drawer" id="drawer" aria-labelledby="drawerTitle" aria-hidden="true">
       <div class="drawer-head">
-        <div><span>INBOX</span><h2 id="drawerTitle">Bad decisions</h2></div>
+        <div class="drawer-title-row">
+          <button class="thread-back" id="threadBack" aria-label="Back to conversations" hidden>←</button>
+          <div><span id="drawerKicker">INBOX</span><h2 id="drawerTitle">Bad decisions</h2></div>
+        </div>
         <button id="drawerClose" aria-label="Close inbox">×</button>
       </div>
-      <div class="message-list">
-        <button class="message unread"><span class="message-avatar coral">M</span><span><b>Mystery person</b><small>hey (sent 9 days ago)</small></span><i>9d</i></button>
-        <button class="message unread"><span class="message-avatar blue">?</span><span><b>Your algorithm</b><small>We need to talk.</small></span><i>2h</i></button>
-        <button class="message"><span class="message-avatar yellow">D</span><span><b>Dad joke enjoyer</b><small>Typing for 47 minutes…</small></span><i>now</i></button>
+      <div class="message-list" id="conversationList">
+        <div class="inbox-loading"><span></span> Loading previous mistakes…</div>
       </div>
-      <p class="drawer-note">End-to-end encrypted against meaningful conversation.</p>
+      <section class="message-thread" id="messageThread" hidden>
+        <div class="thread-messages" id="threadMessages" aria-live="polite"></div>
+        <div class="response-ration">
+          <div class="response-ration-head">
+            <div><span>RESPONSE RATION</span><b>Choose the least wrong thing</b></div>
+            <button id="gifToggle" type="button">GIF escape hatch</button>
+          </div>
+          <div class="reply-options" id="replyOptions"></div>
+          <div class="gif-picker" id="gifPicker" hidden></div>
+          <p id="replyStatus">Original thought has been disabled for quality assurance.</p>
+        </div>
+      </section>
+      <p class="drawer-note" id="drawerNote">End-to-end encrypted against meaningful conversation.</p>
     </aside>
 
     <script src="app.js"></script>

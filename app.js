@@ -156,6 +156,16 @@ const els = {
   sabotageStatus: $("#sabotageStatus"),
   sabotageCopy: $("#sabotageCopy"),
   avatarInitials: $("#avatarInitials"),
+  conversationList: $("#conversationList"),
+  messageThread: $("#messageThread"),
+  threadMessages: $("#threadMessages"),
+  replyOptions: $("#replyOptions"),
+  gifPicker: $("#gifPicker"),
+  replyStatus: $("#replyStatus"),
+  drawerTitle: $("#drawerTitle"),
+  drawerKicker: $("#drawerKicker"),
+  drawerNote: $("#drawerNote"),
+  threadBack: $("#threadBack"),
 };
 
 const defaultUserProfile = {
@@ -214,6 +224,23 @@ let userProfile = copyProfile(storedUserProfile || defaultUserProfile);
 let draftProfile = copyProfile(userProfile);
 let onboardingStep = 0;
 let editingProfile = false;
+let conversations = [];
+let activeConversation = null;
+let sendingMessage = false;
+
+function getVisitorId() {
+  try {
+    const stored = localStorage.getItem("dealbreaker-visitor-v1");
+    if (stored) return stored;
+    const generated = crypto.randomUUID();
+    localStorage.setItem("dealbreaker-visitor-v1", generated);
+    return generated;
+  } catch {
+    return "00000000-0000-4000-8000-000000000001";
+  }
+}
+
+const visitorId = getVisitorId();
 
 function toast(message) {
   const node = document.createElement("div");
@@ -422,15 +449,142 @@ function askMom() {
   });
 }
 
+async function apiFetch(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      "x-visitor-id": visitorId,
+      ...(options.body ? { "content-type": "application/json" } : {}),
+      ...options.headers,
+    },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "The server declined to elaborate.");
+  return payload;
+}
+
+function relativeTime(timestamp) {
+  const elapsed = Math.max(0, Date.now() - new Date(timestamp).getTime());
+  if (elapsed < 60_000) return "now";
+  if (elapsed < 3_600_000) return `${Math.floor(elapsed / 60_000)}m`;
+  if (elapsed < 86_400_000) return `${Math.floor(elapsed / 3_600_000)}h`;
+  return `${Math.floor(elapsed / 86_400_000)}d`;
+}
+
+function renderConversationList() {
+  if (!conversations.length) {
+    els.conversationList.innerHTML = `<div class="inbox-loading">No bad decisions yet. Suspicious.</div>`;
+    return;
+  }
+  els.conversationList.innerHTML = conversations.map((conversation, index) => `
+    <button class="message ${index < 2 ? "unread" : ""}" data-conversation-id="${escapeHTML(conversation.id)}">
+      <span class="message-avatar ${escapeHTML(conversation.color)}">${escapeHTML(conversation.avatar)}</span>
+      <span><b>${escapeHTML(conversation.name)}</b><small>${escapeHTML(conversation.lastMessage)}</small></span>
+      <i>${relativeTime(conversation.lastMessageAt)}</i>
+    </button>
+  `).join("");
+}
+
+async function loadConversations() {
+  els.conversationList.innerHTML = `<div class="inbox-loading"><span></span> Loading previous mistakes…</div>`;
+  try {
+    ({ conversations } = await apiFetch("/api/conversations"));
+    renderConversationList();
+  } catch (error) {
+    els.conversationList.innerHTML = `<div class="inbox-loading">Inbox unavailable. ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+function messageMarkup(message) {
+  const media = message.mediaUrl ? `<img class="chat-media" src="${escapeHTML(message.mediaUrl)}" alt="${escapeHTML(message.mediaAlt || "A reaction with no useful context")}">` : "";
+  const body = message.type === "gif" ? "A GIF was deployed instead of a thought." : escapeHTML(message.body);
+  return `
+    <article class="chat-message ${message.sender === "you" ? "you" : "match"} ${escapeHTML(message.type || "text")}">
+      ${media}
+      <div class="chat-message-bubble">${body}</div>
+      <small>${message.sender === "you" ? "you, under constraint" : "them, allegedly"} · ${relativeTime(message.createdAt)}</small>
+    </article>
+  `;
+}
+
+function renderThread(payload) {
+  els.threadMessages.innerHTML = payload.messages.map(messageMarkup).join("");
+  els.replyOptions.innerHTML = payload.replyOptions.map((option) => `
+    <button class="reply-choice" data-reply-option="${escapeHTML(option.id)}">${escapeHTML(option.body)}</button>
+  `).join("");
+  els.gifPicker.innerHTML = payload.gifOptions.map((gif) => `
+    <button class="gif-choice" data-gif-option="${escapeHTML(gif.id)}" aria-label="Send GIF: ${escapeHTML(gif.label)}">
+      <img src="${escapeHTML(gif.url)}" alt="${escapeHTML(gif.label)}" loading="lazy">
+      <span>${escapeHTML(gif.label)}</span>
+    </button>
+  `).join("");
+  els.replyStatus.textContent = "Original thought has been disabled for quality assurance.";
+  window.setTimeout(() => { els.threadMessages.scrollTop = els.threadMessages.scrollHeight; }, 0);
+}
+
+async function openConversation(conversationId) {
+  const conversation = conversations.find((item) => item.id === conversationId);
+  if (!conversation) return;
+  activeConversation = conversation;
+  els.drawer.classList.add("thread-open");
+  els.conversationList.hidden = true;
+  els.messageThread.hidden = false;
+  els.threadBack.hidden = false;
+  els.drawerKicker.textContent = "LIVE LIABILITY";
+  els.drawerTitle.textContent = conversation.name;
+  els.threadMessages.innerHTML = `<div class="inbox-loading"><span></span> Retrieving evidence…</div>`;
+  els.replyOptions.innerHTML = "";
+  try {
+    renderThread(await apiFetch(`/api/conversations/${conversationId}/messages`));
+  } catch (error) {
+    els.threadMessages.innerHTML = `<div class="inbox-loading">Conversation unavailable. ${escapeHTML(error.message)}</div>`;
+  }
+}
+
+function showConversationList() {
+  activeConversation = null;
+  els.drawer.classList.remove("thread-open");
+  els.conversationList.hidden = false;
+  els.messageThread.hidden = true;
+  els.threadBack.hidden = true;
+  els.drawerKicker.textContent = "INBOX";
+  els.drawerTitle.textContent = "Bad decisions";
+  els.gifPicker.hidden = true;
+}
+
+async function sendSelection(selection) {
+  if (!activeConversation || sendingMessage) return;
+  sendingMessage = true;
+  $$(".reply-choice, .gif-choice").forEach((button) => { button.disabled = true; });
+  els.replyStatus.textContent = "Sending the least defensible option…";
+  try {
+    const payload = await apiFetch(`/api/conversations/${activeConversation.id}/messages`, {
+      method: "POST",
+      body: JSON.stringify(selection),
+    });
+    renderThread(payload);
+    const refreshed = await apiFetch("/api/conversations");
+    conversations = refreshed.conversations;
+  } catch (error) {
+    els.replyStatus.textContent = error.message;
+    $$(".reply-choice, .gif-choice").forEach((button) => { button.disabled = false; });
+  } finally {
+    sendingMessage = false;
+  }
+}
+
 function openDrawer() {
   els.drawer.classList.add("open");
   els.drawer.setAttribute("aria-hidden", "false");
+  showConversationList();
+  loadConversations();
   $("#drawerClose").focus();
 }
 
 function closeDrawer() {
   els.drawer.classList.remove("open");
   els.drawer.setAttribute("aria-hidden", "true");
+  showConversationList();
 }
 
 function onboardingShell(copy, panel) {
@@ -633,6 +787,23 @@ $("#modalClose").addEventListener("click", closeModal);
 els.modalBackdrop.addEventListener("click", (event) => { if (event.target === els.modalBackdrop) closeModal(); });
 $("[data-panel='inbox']").addEventListener("click", openDrawer);
 $("#drawerClose").addEventListener("click", closeDrawer);
+els.threadBack.addEventListener("click", showConversationList);
+els.conversationList.addEventListener("click", (event) => {
+  const conversation = event.target.closest("[data-conversation-id]");
+  if (conversation) openConversation(conversation.dataset.conversationId);
+});
+els.replyOptions.addEventListener("click", (event) => {
+  const option = event.target.closest("[data-reply-option]");
+  if (option) sendSelection({ kind: "response", optionId: option.dataset.replyOption });
+});
+els.gifPicker.addEventListener("click", (event) => {
+  const gif = event.target.closest("[data-gif-option]");
+  if (gif) sendSelection({ kind: "gif", gifId: gif.dataset.gifOption });
+});
+$("#gifToggle").addEventListener("click", () => {
+  els.gifPicker.hidden = !els.gifPicker.hidden;
+  $("#gifToggle").textContent = els.gifPicker.hidden ? "GIF escape hatch" : "Hide visual panic";
+});
 
 $("[data-panel='account']").addEventListener("click", openAccount);
 
@@ -763,11 +934,6 @@ document.addEventListener("click", (event) => {
     userProfile = copyProfile(defaultUserProfile);
     closeModal();
     startOnboarding(false);
-  }
-  const message = event.target.closest(".message");
-  if (message) {
-    message.classList.remove("unread");
-    toast("This conversation has been archived before it began.");
   }
 });
 

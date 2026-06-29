@@ -286,15 +286,18 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
 .door:nth-child(3) { background: var(--yellow); color: var(--ink); }
 .door:hover { transform: translateY(-3px); }
 
-.drawer { position: fixed; z-index: 55; right: 0; top: 0; height: 100vh; width: min(92vw, 390px); background: var(--paper); border-left: 3px solid var(--ink); box-shadow: -10px 0 0 rgba(22,21,19,.18); transform: translateX(105%); transition: transform .3s cubic-bezier(.3,.8,.3,1); padding: 28px; }
+.drawer { position: fixed; z-index: 55; right: 0; top: 0; height: 100vh; width: min(96vw, 440px); background: var(--paper); border-left: 3px solid var(--ink); box-shadow: -10px 0 0 rgba(22,21,19,.18); transform: translateX(105%); transition: transform .3s cubic-bezier(.3,.8,.3,1); padding: 25px 25px 18px; display: flex; flex-direction: column; }
 .drawer.open { transform: translateX(0); }
-.drawer-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--ink); padding-bottom: 18px; }
+.drawer-head { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--ink); padding-bottom: 18px; }
 .drawer-head span { color: var(--coral-dark); font-weight: 800; font-size: 8px; letter-spacing: 1px; }
 .drawer-head h2 { font: 700 30px/1 "Space Grotesk", sans-serif; margin: 4px 0 0; }
 .drawer-head button { border: 0; background: none; font-size: 30px; cursor: pointer; }
-.message-list { display: grid; margin-top: 14px; }
+.drawer-title-row { display: flex; align-items: center; gap: 8px; }
+.drawer-head .thread-back { width: 34px; height: 34px; margin-top: 3px; border: 1.5px solid var(--ink); background: var(--yellow); box-shadow: 2px 2px 0 var(--ink); font-size: 19px; line-height: 1; }
+.message-list { flex: 1; min-height: 0; display: grid; align-content: start; margin-top: 14px; overflow-y: auto; }
 .message { display: grid; grid-template-columns: 43px 1fr auto; gap: 11px; align-items: center; text-align: left; border: 0; border-bottom: 1px solid rgba(22,21,19,.2); background: transparent; padding: 15px 3px; cursor: pointer; }
 .message.unread { background: rgba(255,90,54,.08); }
+.message:hover { background: rgba(255,213,47,.16); }
 .message-avatar { width: 40px; height: 40px; border: 1.5px solid var(--ink); border-radius: 50%; display: grid; place-items: center; color: white; font-weight: 800; }
 .message-avatar.coral { background: var(--coral); }
 .message-avatar.blue { background: var(--blue); }
@@ -302,7 +305,38 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
 .message > span:nth-child(2) { display: grid; gap: 3px; }
 .message b { font-size: 11px; }
 .message small, .message i { font-size: 8px; opacity: .6; font-style: normal; }
-.drawer-note { position: absolute; bottom: 25px; left: 28px; right: 28px; text-align: center; font-size: 8px; opacity: .5; }
+.inbox-loading { padding: 40px 12px; display: flex; justify-content: center; align-items: center; gap: 9px; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.inbox-loading span { width: 11px; height: 11px; border: 2px solid var(--ink); border-top-color: var(--coral); border-radius: 50%; animation: spin .8s linear infinite; }
+.message-thread { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.message-thread[hidden] { display: none; }
+.thread-messages { flex: 1; min-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; padding: 16px 4px 20px; }
+.chat-message { max-width: 82%; display: grid; gap: 5px; align-self: flex-start; }
+.chat-message.you { align-self: flex-end; justify-items: end; }
+.chat-message-bubble { border: 1.5px solid var(--ink); background: white; box-shadow: 3px 3px 0 var(--ink); padding: 10px 12px; font-size: 10px; line-height: 1.45; }
+.chat-message.you .chat-message-bubble { background: var(--coral); color: white; }
+.chat-message small { padding-inline: 4px; font-size: 7px; opacity: .5; }
+.chat-media { width: min(100%, 260px); max-height: 230px; border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); object-fit: cover; background: #ddd5c8; }
+.chat-message.gif .chat-media { aspect-ratio: 4 / 3; }
+.chat-message.image .chat-media { aspect-ratio: 3 / 2; object-position: 50% 30%; }
+.response-ration { flex: 0 0 auto; border-top: 2px solid var(--ink); padding-top: 13px; background: var(--paper); }
+.response-ration-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.response-ration-head > div { display: grid; gap: 2px; }
+.response-ration-head span { color: var(--coral-dark); font-size: 7px; font-weight: 900; letter-spacing: .8px; }
+.response-ration-head b { font: 700 11px/1.1 "Space Grotesk", sans-serif; }
+.response-ration-head button { cursor: pointer; border: 1.5px solid var(--ink); background: var(--yellow); box-shadow: 2px 2px 0 var(--ink); padding: 7px 8px; font-size: 7px; font-weight: 900; text-transform: uppercase; }
+.reply-options { display: grid; gap: 6px; margin-top: 11px; }
+.reply-choice { cursor: pointer; border: 1.5px solid var(--ink); background: var(--cream); padding: 9px 10px; text-align: left; font-size: 9px; font-weight: 700; line-height: 1.35; transition: transform .12s ease, background .12s ease; }
+.reply-choice::before { content: "→"; color: var(--coral-dark); margin-right: 7px; }
+.reply-choice:hover { background: var(--pink); transform: translateX(2px); }
+.reply-choice:disabled, .gif-choice:disabled { cursor: wait; opacity: .5; }
+.gif-picker { grid-template-columns: repeat(3,1fr); gap: 6px; margin-top: 11px; }
+.gif-picker:not([hidden]) { display: grid; }
+.gif-choice { min-width: 0; cursor: pointer; border: 1.5px solid var(--ink); background: var(--cream); padding: 0; overflow: hidden; box-shadow: 2px 2px 0 var(--ink); }
+.gif-choice img { width: 100%; aspect-ratio: 1; display: block; object-fit: cover; }
+.gif-choice span { display: block; padding: 5px; font-size: 6px; font-weight: 800; line-height: 1.2; }
+.response-ration > p { min-height: 10px; margin: 9px 0 0; text-align: center; font-size: 7px; opacity: .55; }
+.drawer-note { flex: 0 0 auto; margin: 13px 0 0; text-align: center; font-size: 7px; opacity: .5; }
+.drawer.thread-open .drawer-note { display: none; }
 
 .shake { animation: shake .35s linear; }
 
@@ -314,6 +348,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
 @keyframes modalIn { from { transform: scale(.84) rotate(-3deg); opacity: 0; } }
 @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-7px) rotate(-1deg); } 75% { transform: translateX(7px) rotate(1deg); } }
 @keyframes onboardingIn { from { transform: scale(.94) rotate(-1deg); opacity: 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 1150px) {
   .app-shell { grid-template-columns: minmax(230px,.7fr) minmax(430px,520px); }

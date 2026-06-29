@@ -173,10 +173,51 @@ async function main() {
     fs.writeFileSync(path.join(os.tmpdir(), "dealbreaker-feed.png"), Buffer.from(feedCapture.data, "base64"));
   }
 
+  await evaluate("document.querySelector('[data-panel=inbox]').click()");
+  let inboxReady = false;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await delay(100);
+    inboxReady = await evaluate("document.querySelectorAll('[data-conversation-id]').length === 3");
+    if (inboxReady) break;
+  }
+  await evaluate("document.querySelector('[data-conversation-id]').click()");
+  let threadReady = false;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await delay(100);
+    threadReady = await evaluate("document.querySelectorAll('[data-reply-option]').length === 3");
+    if (threadReady) break;
+  }
+  const constrainedComposer = await evaluate(`({
+    replyCount: document.querySelectorAll('[data-reply-option]').length,
+    gifCount: document.querySelectorAll('[data-gif-option]').length,
+    hasFreeText: Boolean(document.querySelector('#messageThread textarea, #messageThread input[type=text]')),
+    initialMessages: document.querySelectorAll('.chat-message').length
+  })`);
+  await evaluate("document.querySelector('[data-reply-option]').click()");
+  let selectedReplyRendered = false;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await delay(100);
+    selectedReplyRendered = await evaluate(`document.querySelectorAll('.chat-message').length > ${constrainedComposer.initialMessages}`);
+    if (selectedReplyRendered) break;
+  }
+  await evaluate("document.querySelector('#gifToggle').click(); document.querySelector('[data-gif-option]').click()");
+  let gifRendered = false;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await delay(100);
+    gifRendered = await evaluate("Boolean(document.querySelector('.chat-message.gif'))");
+    if (gifRendered) break;
+  }
+  const arbitraryTextStatus = await evaluate(`fetch('/api/conversations/' + activeConversation.id + '/messages', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-visitor-id': visitorId },
+    body: JSON.stringify({ body: 'I reject your constraints.' })
+  }).then((response) => response.status)`);
+
   const report = {
     initial,
     onboarding: { review: onboardingReview, complete: onboardingComplete },
     flows: { matchTrial, mutual, secondProfile, rejectionGuilt, thirdProfile, generatedProfilesLoaded },
+    messaging: { inboxReady, threadReady, constrainedComposer, selectedReplyRendered, gifRendered, arbitraryTextStatus },
     exceptions,
     failedRequests,
   };
@@ -202,6 +243,14 @@ async function main() {
     && rejectionGuilt
     && thirdProfile === "Jules"
     && generatedProfilesLoaded
+    && inboxReady
+    && threadReady
+    && constrainedComposer.replyCount === 3
+    && constrainedComposer.gifCount === 3
+    && !constrainedComposer.hasFreeText
+    && selectedReplyRendered
+    && gifRendered
+    && arbitraryTextStatus === 400
     && exceptions.length === 0
     && failedAppRequests.length === 0;
 

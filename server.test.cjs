@@ -22,6 +22,35 @@ test("health endpoint reports the local storage adapter", async () => {
   assert.deepEqual(config, { giphyApiKey: null });
 });
 
+test("profile photos can be uploaded, read, replaced, and removed", async () => {
+  const headers = { "x-visitor-id": visitorId };
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+  const upload = await fetch(`${baseUrl}/api/profile-photo`, {
+    method: "POST",
+    headers: { ...headers, "content-type": "image/png" },
+    body: png,
+  });
+  assert.equal(upload.status, 201);
+  assert.equal((await upload.json()).mimeType, "image/png");
+
+  const downloaded = await fetch(`${baseUrl}/api/profile-photo`, { headers });
+  assert.equal(downloaded.status, 200);
+  assert.equal(downloaded.headers.get("content-type"), "image/png");
+  assert.deepEqual(Buffer.from(await downloaded.arrayBuffer()), png);
+
+  const rejected = await fetch(`${baseUrl}/api/profile-photo`, {
+    method: "POST",
+    headers: { ...headers, "content-type": "image/png" },
+    body: Buffer.from("definitely a spreadsheet"),
+  });
+  assert.equal(rejected.status, 415);
+
+  const removed = await fetch(`${baseUrl}/api/profile-photo`, { method: "DELETE", headers });
+  assert.equal(removed.status, 200);
+  assert.equal((await removed.json()).deleted, true);
+  assert.equal((await fetch(`${baseUrl}/api/profile-photo`, { headers })).status, 404);
+});
+
 test("conversation messages persist for a browser visitor", async () => {
   const headers = { "x-visitor-id": visitorId };
   const conversationsResponse = await fetch(`${baseUrl}/api/conversations`, { headers });

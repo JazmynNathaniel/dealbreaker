@@ -81,6 +81,15 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
 .evidence-card span { font-size: 26px; }
 .evidence-card small { font-size: 7px; font-weight: 800; text-transform: uppercase; line-height: 1.25; }
 .evidence-card.selected { background: var(--yellow); transform: rotate(-2deg); box-shadow: 4px 4px 0 var(--ink); }
+.profile-photo-editor { margin-top: 9px; display: grid; gap: 7px; }
+.photo-dropzone { min-height: 112px; cursor: pointer; display: grid; grid-template-columns: 82px 1fr; gap: 13px; align-items: center; border: 2px dashed var(--ink); background: #ece5d8; padding: 10px; }
+.photo-dropzone:hover { background: var(--pink); }
+.photo-dropzone img { width: 82px; height: 90px; display: block; object-fit: cover; object-position: center; border: 2px solid var(--ink); }
+.photo-placeholder { width: 82px; height: 90px; display: grid; place-items: center; border: 2px solid var(--ink); background: var(--yellow); font-size: 38px; }
+.photo-dropzone > span:last-child { display: grid; gap: 5px; }
+.photo-dropzone b { font: 700 13px/1.1 "Space Grotesk", sans-serif; }
+.photo-dropzone small { font-size: 8px; line-height: 1.4; opacity: .62; }
+.remove-photo { width: fit-content; cursor: pointer; border: 0; background: none; padding: 3px 0; color: var(--coral-dark); text-decoration: underline; font-size: 8px; font-weight: 800; }
 .chip-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
 .onboarding-chip { cursor: pointer; border: 1.5px solid var(--ink); border-radius: 20px; padding: 8px 11px; background: #ece5d8; font-size: 9px; font-weight: 800; }
 .onboarding-chip.selected { color: white; background: var(--blue); box-shadow: 2px 2px 0 var(--ink); transform: rotate(-1deg); }
@@ -93,7 +102,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
 .sabotage-stage .sabotage-labels { margin-top: 7px; }
 .sabotage-verdict { border-left: 4px solid var(--blue); padding-left: 12px; margin-top: 18px; font: 700 12px/1.45 "Space Grotesk", sans-serif; }
 .review-card { display: grid; grid-template-columns: 78px 1fr; gap: 15px; align-items: center; padding: 14px; border: 2px solid var(--ink); background: white; box-shadow: 4px 4px 0 var(--ink); }
-.review-avatar { width: 72px; height: 84px; display: grid; place-items: center; background: var(--yellow); border: 2px solid var(--ink); font-size: 34px; }
+.review-avatar { width: 72px; height: 84px; display: grid; place-items: center; background: var(--yellow); border: 2px solid var(--ink); font-size: 34px; overflow: hidden; }
+.review-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .review-card h3 { font: 700 25px/1 "Space Grotesk", sans-serif; margin: 0 0 5px; }
 .review-card p { margin: 0 0 9px; font-size: 10px; opacity: .7; }
 .review-traits { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -138,6 +148,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
 .nav-icon { font-size: 20px; }
 .badge { display: grid; place-items: center; width: 21px; height: 21px; color: white; background: var(--coral); border: 1.5px solid var(--ink); border-radius: 50%; font-size: 10px; }
 .avatar-button { width: 52px; height: 52px; border-radius: 50%; border: 2px solid var(--ink); background: var(--blue); color: white; font-size: 10px; font-weight: 800; position: relative; box-shadow: 3px 3px 0 var(--ink); }
+.avatar-button.has-photo { background-size: cover; background-position: center; }
+.avatar-button.has-photo #avatarInitials { opacity: 0; }
 .online-dot { position: absolute; width: 13px; height: 13px; border-radius: 50%; background: #5bf088; border: 2px solid var(--ink); right: -2px; bottom: 2px; }
 .subscription-button { cursor: pointer; min-height: 45px; display: flex; align-items: center; gap: 8px; border: 2px solid var(--ink); background: var(--yellow); box-shadow: 3px 3px 0 var(--ink); padding: 6px 10px 6px 7px; transform: rotate(-1deg); }
 .subscription-button:hover { transform: translate(-1px,-2px) rotate(-1deg); box-shadow: 5px 5px 0 var(--ink); }
@@ -348,6 +360,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
 .subscription-ledger { display: grid; gap: 7px; margin: 20px 0 4px; border-top: 1.5px dashed var(--ink); padding-top: 14px; }
 .subscription-ledger div { display: flex; justify-content: space-between; gap: 20px; font-size: 9px; }
 .subscription-ledger strong { color: var(--coral-dark); text-transform: uppercase; }
+.account-photo { width: 108px; height: 126px; display: block; object-fit: cover; margin: 15px 0 4px; border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--yellow); transform: rotate(-1deg); }
 .response-ration > p { min-height: 10px; margin: 9px 0 0; text-align: center; font-size: 7px; opacity: .55; }
 .drawer-note { flex: 0 0 auto; margin: 13px 0 0; text-align: center; font-size: 7px; opacity: .5; }
 .drawer.thread-open .drawer-note { display: none; }
@@ -425,6 +438,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-
   .onboarding-content { padding-inline: 16px; }
   .onboarding-panel { padding: 20px 17px; box-shadow: 5px 5px 0 var(--ink); }
   .field-grid { grid-template-columns: 1fr 74px; }
+  .photo-dropzone { grid-template-columns: 66px 1fr; }
+  .photo-dropzone img, .photo-placeholder { width: 66px; height: 76px; }
   .evidence-card { min-height: 80px; padding-inline: 4px; }
   .onboarding-actions { align-items: stretch; flex-direction: column-reverse; }
   .onboarding-actions.split { align-items: stretch; }

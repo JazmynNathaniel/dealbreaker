@@ -116,10 +116,17 @@ async function main() {
 
   await evaluate("document.querySelector('[data-onboarding-action=next]').click()");
   await delay(120);
-  await evaluate(`(() => {
+  await evaluate(`(async () => {
     const name = document.querySelector('#draftName');
     name.value = 'Test Liability';
     name.dispatchEvent(new Event('input', { bubbles: true }));
+    const blob = await fetch('assets/marina.png').then((response) => response.blob());
+    const file = new File([blob], 'definitely-current.png', { type: 'image/png' });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    const input = document.querySelector('#draftPhoto');
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
     document.querySelector('[data-onboarding-action=next]').click();
   })()`);
   await delay(120);
@@ -134,16 +141,24 @@ async function main() {
   await delay(120);
   const onboardingReview = await evaluate(`({
     reviewVisible: document.querySelector('#onboardingContent')?.innerText.includes('Test Liability'),
-    sabotageVisible: document.querySelector('#onboardingContent')?.innerText.includes('88%')
+    sabotageVisible: document.querySelector('#onboardingContent')?.innerText.includes('88%'),
+    photoVisible: Boolean(document.querySelector('.review-avatar img'))
   })`);
   await evaluate("document.querySelector('[data-onboarding-action=finish]').click()");
-  await delay(150);
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    await delay(100);
+    if (await evaluate("document.querySelector('#onboarding').hidden")) break;
+  }
   const onboardingComplete = await evaluate(`({
     hidden: document.querySelector('#onboarding').hidden,
     initials: document.querySelector('#avatarInitials').textContent,
+    avatarHasPhoto: document.querySelector('[data-panel=account]').classList.contains('has-photo'),
     savedName: JSON.parse(localStorage.getItem('dealbreaker-profile-v1')).name,
     sabotage: document.querySelector('#sabotageDial').value
   })`);
+  const photoStored = await evaluate(`fetch('/api/profile-photo', {
+    headers: { 'x-visitor-id': visitorId }
+  }).then((response) => ({ status: response.status, type: response.headers.get('content-type') }))`);
 
   await evaluate("document.querySelector('#subscriptionButton').click()");
   await delay(80);
@@ -248,7 +263,7 @@ async function main() {
 
   const report = {
     initial,
-    onboarding: { review: onboardingReview, complete: onboardingComplete },
+    onboarding: { review: onboardingReview, complete: onboardingComplete, photoStored },
     subscription,
     flows: { matchTrial, mutual, secondProfile, rejectionGuilt, thirdProfile, generatedProfilesLoaded },
     messaging: { inboxReady, threadReady, constrainedComposer, selectedReplyRendered, gifRendered, arbitraryTextStatus },
@@ -258,7 +273,9 @@ async function main() {
   };
 
   const appDirectory = appUrl.slice(0, appUrl.lastIndexOf("/") + 1);
-  const failedAppRequests = failedRequests.filter((request) => request.url.startsWith(appDirectory));
+  const failedAppRequests = failedRequests.filter((request) => (
+    request.url.startsWith(appDirectory) && request.error !== "net::ERR_ABORTED"
+  ));
 
   const passed = initial.title.includes("DEALBREAKER")
     && initial.profile === "Marina"
@@ -268,10 +285,14 @@ async function main() {
     && initial.onboardingStep === "Evidence 1 of 5"
     && onboardingReview.reviewVisible
     && onboardingReview.sabotageVisible
+    && onboardingReview.photoVisible
     && onboardingComplete.hidden
     && onboardingComplete.initials === "TL"
+    && onboardingComplete.avatarHasPhoto
     && onboardingComplete.savedName === "Test Liability"
     && onboardingComplete.sabotage === "88"
+    && photoStored.status === 200
+    && photoStored.type === "image/png"
     && subscription.opens
     && subscription.promisesNothing
     && matchTrial

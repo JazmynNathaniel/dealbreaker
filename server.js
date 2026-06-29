@@ -13,6 +13,7 @@ const pool = databaseUrl ? new Pool({
   idleTimeoutMillis: 30_000,
 }) : null;
 const memoryVisitors = new Map();
+const memoryProfilePhotos = new Map();
 
 const seedProfiles = [
   {
@@ -152,6 +153,15 @@ function publicMessage(message) {
   };
 }
 
+function detectImageType(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return "image/jpeg";
+  if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  if (buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+  if (["GIF87a", "GIF89a"].includes(buffer.toString("ascii", 0, 6))) return "image/gif";
+  return null;
+}
+
 async function initializeDatabase() {
   if (!pool) {
     console.log("DATABASE_URL is not set; using the in-memory messaging sandbox.");
@@ -191,6 +201,14 @@ async function initializeDatabase() {
 
     CREATE INDEX IF NOT EXISTS conversations_visitor_idx ON conversations(visitor_id);
     CREATE INDEX IF NOT EXISTS messages_conversation_time_idx ON messages(conversation_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS profile_photos (
+      visitor_id UUID PRIMARY KEY,
+      mime_type VARCHAR(20) NOT NULL,
+      image_data BYTEA NOT NULL,
+      byte_size INTEGER NOT NULL CHECK (byte_size BETWEEN 12 AND 4194304),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
 
   console.log("PostgreSQL messaging schema is ready.");
@@ -404,6 +422,45 @@ async function createMessages(visitorId, conversationId, selection) {
   }
 }
 
+async function saveProfilePhoto(visitorId, mimeType, imageData) {
+  if (!pool) {
+    const photo = { mimeType, imageData: Buffer.from(imageData), updatedAt: new Date().toISOString() };
+    memoryProfilePhotos.set(visitorId, photo);
+    return photo;
+  }
+  const result = await pool.query(`
+    INSERT INTO profile_photos (visitor_id, mime_type, image_data, byte_size)
+    VALUES ($1, $2, $3, $4)
+    ON CONFLICT (visitor_id) DO UPDATE SET
+      mime_type = EXCLUDED.mime_type,
+      image_data = EXCLUDED.image_data,
+      byte_size = EXCLUDED.byte_size,
+      updated_at = NOW()
+    RETURNING mime_type, updated_at
+  `, [visitorId, mimeType, imageData, imageData.length]);
+  return { mimeType: result.rows[0].mime_type, updatedAt: result.rows[0].updated_at };
+}
+
+async function readProfilePhoto(visitorId) {
+  if (!pool) return memoryProfilePhotos.get(visitorId) || null;
+  const result = await pool.query(
+    "SELECT mime_type, image_data, updated_at FROM profile_photos WHERE visitor_id = $1",
+    [visitorId],
+  );
+  if (!result.rowCount) return null;
+  return {
+    mimeType: result.rows[0].mime_type,
+    imageData: result.rows[0].image_data,
+    updatedAt: result.rows[0].updated_at,
+  };
+}
+
+async function deleteProfilePhoto(visitorId) {
+  if (!pool) return memoryProfilePhotos.delete(visitorId);
+  const result = await pool.query("DELETE FROM profile_photos WHERE visitor_id = $1", [visitorId]);
+  return Boolean(result.rowCount);
+}
+
 app.get("/api/health", async (_request, response, next) => {
   try {
     if (pool) await pool.query("SELECT 1");
@@ -416,6 +473,45 @@ app.get("/api/health", async (_request, response, next) => {
 app.get("/api/config", (_request, response) => {
   // GIPHY requires Web Search calls from the client, so its web API key is intentionally public.
   response.json({ giphyApiKey: giphyApiKey || null });
+});
+
+app.get("/api/profile-photo", async (request, response, next) => {
+  try {
+    const photo = await readProfilePhoto(visitorIdFrom(request));
+    if (!photo) return response.status(404).json({ error: "No photographic evidence exists." });
+    response.set({
+      "Content-Type": photo.mimeType,
+      "Content-Length": String(photo.imageData.length),
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+    });
+    response.send(photo.imageData);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post(
+  "/api/profile-photo",
+  express.raw({ type: ["image/jpeg", "image/png", "image/webp", "image/gif"], limit: "4mb" }),
+  async (request, response, next) => {
+    try {
+      const mimeType = detectImageType(request.body);
+      if (!mimeType) return response.status(415).json({ error: "Upload a real JPEG, PNG, WebP, or GIF." });
+      const saved = await saveProfilePhoto(visitorIdFrom(request), mimeType, request.body);
+      response.status(201).json({ ok: true, mimeType: saved.mimeType, updatedAt: saved.updatedAt });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.delete("/api/profile-photo", async (request, response, next) => {
+  try {
+    response.json({ ok: true, deleted: await deleteProfilePhoto(visitorIdFrom(request)) });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/api/conversations", async (request, response, next) => {

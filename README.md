@@ -4,6 +4,8 @@ The dating app that knows nothing about love and too much about your screen brig
 
 The first visit includes a five-step profile creation interrogation. Profile details and the recommendation sabotage level are saved locally in the browser; use the avatar to edit or restart the process. The feed contains seven fake profiles, and the sabotage control intentionally inverts and degrades their compatibility scores.
 
+Users can upload a profile photo during onboarding. JPEG, PNG, WebP, and GIF files up to 4 MB are magic-byte validated and stored in Neon Postgres under the browser's anonymous visitor ID; local development uses the in-memory adapter.
+
 Messaging is intentionally hostile to free expression. The server offers three rotating canned responses plus GIPHY search; arbitrary text is rejected by the API, and submitted GIPHY IDs are resolved server-side before persistence. Conversations and messages persist in Neon Postgres when `DATABASE_URL` is configured. Without it, the same API uses an in-memory sandbox for local development.
 
 ## Run it

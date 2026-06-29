@@ -154,6 +154,7 @@ const els = {
   sabotageDial: $("#sabotageDial"),
   sabotageStatus: $("#sabotageStatus"),
   sabotageCopy: $("#sabotageCopy"),
+  avatarButton: $("[data-panel='account']"),
   avatarInitials: $("#avatarInitials"),
   conversationList: $("#conversationList"),
   messageThread: $("#messageThread"),
@@ -232,6 +233,10 @@ let sendingMessage = false;
 let giphyApiKey = null;
 let giphyConfigLoaded = false;
 let giphyRequestId = 0;
+let userPhotoUrl = null;
+let draftPhotoFile = null;
+let draftPhotoRemoved = false;
+let draftPhotoPreviewUrl = null;
 
 function getVisitorId() {
   try {
@@ -291,6 +296,8 @@ function renderUserControls() {
   els.sabotageCopy.textContent = meta.copy;
   const initials = userProfile.name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   els.avatarInitials.textContent = initials || "YOU";
+  els.avatarButton.classList.toggle("has-photo", Boolean(userPhotoUrl));
+  els.avatarButton.style.backgroundImage = userPhotoUrl ? `url("${userPhotoUrl}")` : "";
 }
 
 function renderProfile() {
@@ -464,6 +471,37 @@ async function apiFetch(path, options = {}) {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || "The server declined to elaborate.");
   return payload;
+}
+
+function revokeObjectUrl(url) {
+  if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
+}
+
+async function loadProfilePhoto() {
+  try {
+    const response = await fetch("/api/profile-photo", { headers: { "x-visitor-id": visitorId } });
+    if (!response.ok) throw new Error("No photo");
+    const nextUrl = URL.createObjectURL(await response.blob());
+    revokeObjectUrl(userPhotoUrl);
+    userPhotoUrl = nextUrl;
+  } catch {
+    revokeObjectUrl(userPhotoUrl);
+    userPhotoUrl = null;
+  }
+  renderUserControls();
+}
+
+async function saveDraftPhoto() {
+  if (draftPhotoRemoved) {
+    await apiFetch("/api/profile-photo", { method: "DELETE" });
+  } else if (draftPhotoFile) {
+    await apiFetch("/api/profile-photo", {
+      method: "POST",
+      headers: { "content-type": draftPhotoFile.type },
+      body: draftPhotoFile,
+    });
+  }
+  await loadProfilePhoto();
 }
 
 function relativeTime(timestamp) {
@@ -695,6 +733,7 @@ function renderOnboarding() {
     const evidence = [
       ["flash", "⚡", "Hostile flash"], ["pet", "🐕", "Pet takes your slot"], ["old", "◷", "2018 confidence"],
     ];
+    const displayedPhoto = draftPhotoPreviewUrl || (!draftPhotoRemoved ? userPhotoUrl : null);
     els.onboardingContent.innerHTML = onboardingShell(`
       <div class="eyebrow"><span></span> Identity, allegedly</div>
       <h1 id="onboardingTitle">Give us a<br><em>usable rumor.</em></h1>
@@ -708,7 +747,16 @@ function renderOnboarding() {
           <div class="profile-field"><label for="draftAge">Age</label><input id="draftAge" data-draft="age" type="number" min="18" max="99" value="${escapeHTML(draftProfile.age)}"></div>
           <div class="profile-field wide"><label for="draftTitle">Occupation / ongoing situation</label><input id="draftTitle" data-draft="title" maxlength="70" value="${escapeHTML(draftProfile.title)}"></div>
         </div>
-        <div class="choice-label" style="margin-top:18px">Choose your photographic defense</div>
+        <div class="choice-label" style="margin-top:18px">Upload photographic evidence</div>
+        <div class="profile-photo-editor ${displayedPhoto ? "has-photo" : ""}">
+          <input id="draftPhoto" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+          <label class="photo-dropzone" for="draftPhoto">
+            ${displayedPhoto ? `<img src="${escapeHTML(displayedPhoto)}" alt="Your uploaded profile preview">` : `<span class="photo-placeholder">◎</span>`}
+            <span><b>${displayedPhoto ? "Replace this evidence" : "Choose a face-shaped file"}</b><small>JPEG, PNG, WebP, or GIF · 4 MB max · dignity unlimited</small></span>
+          </label>
+          ${displayedPhoto ? `<button type="button" class="remove-photo" data-remove-photo>Remove photo and create suspicion</button>` : ""}
+        </div>
+        <div class="choice-label" style="margin-top:16px">Choose backup photo energy</div>
         <div class="evidence-grid">
           ${evidence.map(([value, icon, label]) => `<button type="button" class="evidence-card ${draftProfile.evidence === value ? "selected" : ""}" data-evidence="${value}"><span>${icon}</span><small>${label}</small></button>`).join("")}
         </div>
@@ -766,6 +814,7 @@ function renderOnboarding() {
 
   if (onboardingStep === 4) {
     const evidenceIcon = { flash: "⚡", pet: "🐕", old: "◷" }[draftProfile.evidence] || "?";
+    const displayedPhoto = draftPhotoPreviewUrl || (!draftPhotoRemoved ? userPhotoUrl : null);
     els.onboardingContent.innerHTML = onboardingShell(`
       <div class="eyebrow"><span></span> Ready for public consumption</div>
       <h1 id="onboardingTitle">Unfortunately,<br><em>that’s you.</em></h1>
@@ -773,7 +822,7 @@ function renderOnboarding() {
     `, `
       <section class="onboarding-panel" data-stamp="${editingProfile ? "AMENDED" : "QUESTIONABLY VERIFIED"}">
         <div class="review-card">
-          <div class="review-avatar">${evidenceIcon}</div>
+          <div class="review-avatar">${displayedPhoto ? `<img src="${escapeHTML(displayedPhoto)}" alt="Your profile photo">` : evidenceIcon}</div>
           <div>
             <h3>${escapeHTML(draftProfile.name)}, ${escapeHTML(draftProfile.age)}</h3>
             <p>${escapeHTML(draftProfile.title)}</p>
@@ -803,15 +852,38 @@ function showOnboardingError(message) {
 function startOnboarding(isEditing = false) {
   editingProfile = isEditing;
   draftProfile = copyProfile(userProfile);
+  draftPhotoFile = null;
+  draftPhotoRemoved = false;
+  revokeObjectUrl(draftPhotoPreviewUrl);
+  draftPhotoPreviewUrl = null;
   onboardingStep = isEditing ? 1 : 0;
   els.onboarding.hidden = false;
   document.body.style.overflow = "hidden";
   renderOnboarding();
 }
 
-function finishOnboarding(useDefaults = false) {
+async function finishOnboarding(useDefaults = false) {
+  const finishButton = els.onboardingContent.querySelector("[data-onboarding-action='finish']");
+  if (finishButton) {
+    finishButton.disabled = true;
+    finishButton.textContent = "Uploading your alibi…";
+  }
+  try {
+    await saveDraftPhoto();
+  } catch (error) {
+    if (finishButton) {
+      finishButton.disabled = false;
+      finishButton.textContent = editingProfile ? "Save these allegations" : "Release me into the feed";
+    }
+    showOnboardingError(error.message || "Your photo refused to become evidence.");
+    return;
+  }
   userProfile = copyProfile(useDefaults ? defaultUserProfile : draftProfile);
   saveUserProfile();
+  draftPhotoFile = null;
+  draftPhotoRemoved = false;
+  revokeObjectUrl(draftPhotoPreviewUrl);
+  draftPhotoPreviewUrl = null;
   els.onboarding.hidden = true;
   document.body.style.overflow = "";
   renderUserControls();
@@ -824,6 +896,7 @@ function openAccount() {
   const safeTitle = escapeHTML(userProfile.title);
   openModal(`
     <span class="modal-kicker">Your public liability</span>
+    ${userPhotoUrl ? `<img class="account-photo" src="${escapeHTML(userPhotoUrl)}" alt="Your profile photo">` : ""}
     <h2>${safeName}, ${escapeHTML(userProfile.age)}</h2>
     <p>${safeTitle}</p>
     <div class="review-traits">${userProfile.traits.map((trait) => `<span>${escapeHTML(trait)}</span>`).join("")}</div>
@@ -896,7 +969,16 @@ $(".onboarding-brand").addEventListener("click", (event) => {
   showOnboardingError("The logo is not an exit. It is branding.");
 });
 
-els.onboarding.addEventListener("click", (event) => {
+els.onboarding.addEventListener("click", async (event) => {
+  if (event.target.closest("[data-remove-photo]")) {
+    draftPhotoFile = null;
+    draftPhotoRemoved = true;
+    revokeObjectUrl(draftPhotoPreviewUrl);
+    draftPhotoPreviewUrl = null;
+    renderOnboarding();
+    return;
+  }
+
   const evidence = event.target.closest("[data-evidence]");
   if (evidence) {
     draftProfile.evidence = evidence.dataset.evidence;
@@ -923,7 +1005,7 @@ els.onboarding.addEventListener("click", (event) => {
   const action = actionButton.dataset.onboardingAction;
 
   if (action === "defaults") {
-    finishOnboarding(true);
+    await finishOnboarding(true);
     return;
   }
   if (action === "back") {
@@ -932,7 +1014,7 @@ els.onboarding.addEventListener("click", (event) => {
     return;
   }
   if (action === "finish") {
-    finishOnboarding();
+    await finishOnboarding();
     return;
   }
 
@@ -961,6 +1043,30 @@ els.onboarding.addEventListener("input", (event) => {
     $("#draftSabotageValue").textContent = `${draftProfile.sabotage}%`;
     $("#draftSabotageVerdict").innerHTML = `<strong>${meta.status}:</strong> ${meta.copy}`;
   }
+});
+
+els.onboarding.addEventListener("change", (event) => {
+  if (event.target.id !== "draftPhoto") return;
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const acceptedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!acceptedTypes.includes(file.type)) {
+    showOnboardingError("That is not a JPEG, PNG, WebP, or GIF. It may be a résumé.");
+    return;
+  }
+  if (file.size > 4 * 1024 * 1024) {
+    showOnboardingError("That photo is over 4 MB. Your face has exceeded its storage allocation.");
+    return;
+  }
+  if (!file.size) {
+    showOnboardingError("That file contains less evidence than your bio.");
+    return;
+  }
+  draftPhotoFile = file;
+  draftPhotoRemoved = false;
+  revokeObjectUrl(draftPhotoPreviewUrl);
+  draftPhotoPreviewUrl = URL.createObjectURL(file);
+  renderOnboarding();
 });
 
 els.sabotageDial.addEventListener("input", () => {
@@ -1046,5 +1152,6 @@ window.setInterval(() => {
 
 renderUserControls();
 renderProfile();
+loadProfilePhoto();
 if (!storedUserProfile) startOnboarding();
 document.documentElement.dataset.appReady = "true";

@@ -5,7 +5,12 @@ const { Pool } = require("pg");
 
 const app = express();
 const databaseUrl = process.env.DATABASE_URL;
-const pool = databaseUrl ? new Pool({ connectionString: databaseUrl }) : null;
+const pool = databaseUrl ? new Pool({
+  connectionString: databaseUrl,
+  max: Number(process.env.DB_POOL_MAX) || 5,
+  connectionTimeoutMillis: 10_000,
+  idleTimeoutMillis: 30_000,
+}) : null;
 const memoryVisitors = new Map();
 
 const seedProfiles = [

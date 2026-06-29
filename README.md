@@ -4,7 +4,7 @@ The dating app that knows nothing about love and too much about your screen brig
 
 The first visit includes a five-step profile creation interrogation. Profile details and the recommendation sabotage level are saved locally in the browser; use the avatar to edit or restart the process. The feed contains seven fake profiles, and the sabotage control intentionally inverts and degrades their compatibility scores.
 
-Messaging is intentionally hostile to free expression. The server offers three rotating canned responses and three curated GIFs; arbitrary text is rejected by the API. Conversations and messages persist in PostgreSQL when `DATABASE_URL` is configured. Without it, the same API uses an in-memory sandbox for local development.
+Messaging is intentionally hostile to free expression. The server offers three rotating canned responses and three curated GIFs; arbitrary text is rejected by the API. Conversations and messages persist in Neon Postgres when `DATABASE_URL` is configured. Without it, the same API uses an in-memory sandbox for local development.
 
 ## Run it
 
@@ -23,13 +23,13 @@ Then visit `http://localhost:10000`.
 npm test
 ```
 
-## Render
+## Render + Neon
 
-The included `render.yaml` defines a Node Web Service and a free Render Postgres database. For an existing manually-created service, use:
+The included `render.yaml` defines a Node Web Service and prompts for an external `DATABASE_URL`. For an existing manually-created service, use:
 
 - Build Command: `npm install`
 - Start Command: `npm start`
 - Health Check Path: `/api/health`
-- Environment variable: `DATABASE_URL` set to the database's internal connection URL
+- Environment variable: `DATABASE_URL` set to Neon's pooled connection string
 
-Keep the web service and database in the same Render region.
+In Neon, open **Connect**, enable **Connection pooling**, and copy the URL containing `-pooler` and `sslmode=require`. Do not commit that URL; add it as a secret in Render and redeploy.

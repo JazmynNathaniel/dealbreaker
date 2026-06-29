@@ -1,0 +1,216 @@
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const appUrl = process.env.APP_URL || "http://127.0.0.1:4173/";
+
+async function main() {
+  const deadline = Date.now() + 15000;
+  let target;
+
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`http://127.0.0.1:9222/json/new?${encodeURIComponent(appUrl)}`, { method: "PUT" });
+      if (response.ok) {
+        target = await response.json();
+        break;
+      }
+    } catch {}
+    await delay(400);
+  }
+
+  if (!target) throw new Error("Edge debugging endpoint did not become ready");
+
+  const socket = new WebSocket(target.webSocketDebuggerUrl);
+  const pending = new Map();
+  const exceptions = [];
+  const failedRequests = [];
+  const requestUrls = new Map();
+  let messageId = 0;
+
+  socket.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    if (message.id && pending.has(message.id)) {
+      const { resolve, reject } = pending.get(message.id);
+      pending.delete(message.id);
+      if (message.error) reject(new Error(message.error.message));
+      else resolve(message.result);
+    }
+    if (message.method === "Runtime.exceptionThrown") exceptions.push(message.params.exceptionDetails.text);
+    if (message.method === "Network.requestWillBeSent") requestUrls.set(message.params.requestId, message.params.request.url);
+    if (message.method === "Network.loadingFailed") {
+      failedRequests.push({ url: requestUrls.get(message.params.requestId) || "unknown", error: message.params.errorText });
+    }
+  };
+
+  await new Promise((resolve, reject) => {
+    socket.onopen = resolve;
+    socket.onerror = () => reject(new Error("Could not open DevTools socket"));
+  });
+
+  function call(method, params = {}) {
+    const id = ++messageId;
+    socket.send(JSON.stringify({ id, method, params }));
+    return new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
+  }
+
+  async function evaluate(expression) {
+    const result = await call("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
+    if (result.exceptionDetails) {
+      throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
+    }
+    return result.result.value;
+  }
+
+  await call("Runtime.enable");
+  await call("Network.enable");
+  await call("Page.enable");
+  await call("Page.navigate", { url: appUrl });
+  await delay(500);
+  await evaluate("localStorage.removeItem('dealbreaker-profile-v1')");
+  await call("Page.reload", { ignoreCache: true });
+  let appReady = false;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    await delay(200);
+    appReady = await evaluate("document.documentElement.dataset.appReady === 'true'");
+    if (appReady) break;
+  }
+  if (!appReady) throw new Error("App did not reach its ready state");
+
+  const initial = await evaluate(`({
+    title: document.title,
+    profile: document.querySelector('#profileName')?.textContent,
+    cardVisible: getComputedStyle(document.querySelector('#profileCard')).display !== 'none',
+    photoLoaded: document.querySelector('#profilePhoto')?.complete && document.querySelector('#profilePhoto')?.naturalWidth > 0,
+    onboardingVisible: !document.querySelector('#onboarding')?.hidden,
+    onboardingStep: document.querySelector('#onboardingStepLabel')?.textContent
+  })`);
+
+  if (process.env.CAPTURE_VISUALS === "1") {
+    const shots = [
+      ["dealbreaker-desktop.png", 1440, 1000, false],
+      ["dealbreaker-mobile.png", 390, 844, true],
+    ];
+    for (const [filename, width, height, mobile] of shots) {
+      await call("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile });
+      await delay(180);
+      const capture = await call("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+      fs.writeFileSync(path.join(os.tmpdir(), filename), Buffer.from(capture.data, "base64"));
+    }
+    await call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+  }
+
+  await evaluate("document.querySelector('[data-onboarding-action=next]').click()");
+  await delay(120);
+  await evaluate(`(() => {
+    const name = document.querySelector('#draftName');
+    name.value = 'Test Liability';
+    name.dispatchEvent(new Event('input', { bubbles: true }));
+    document.querySelector('[data-onboarding-action=next]').click();
+  })()`);
+  await delay(120);
+  await evaluate("document.querySelector('[data-onboarding-action=next]').click()");
+  await delay(120);
+  await evaluate(`(() => {
+    const dial = document.querySelector('#draftSabotage');
+    dial.value = '88';
+    dial.dispatchEvent(new Event('input', { bubbles: true }));
+    document.querySelector('[data-onboarding-action=next]').click();
+  })()`);
+  await delay(120);
+  const onboardingReview = await evaluate(`({
+    reviewVisible: document.querySelector('#onboardingContent')?.innerText.includes('Test Liability'),
+    sabotageVisible: document.querySelector('#onboardingContent')?.innerText.includes('88%')
+  })`);
+  await evaluate("document.querySelector('[data-onboarding-action=finish]').click()");
+  await delay(150);
+  const onboardingComplete = await evaluate(`({
+    hidden: document.querySelector('#onboarding').hidden,
+    initials: document.querySelector('#avatarInitials').textContent,
+    savedName: JSON.parse(localStorage.getItem('dealbreaker-profile-v1')).name,
+    sabotage: document.querySelector('#sabotageDial').value
+  })`);
+
+  await evaluate("document.querySelector('#acceptButton').click()");
+  await delay(250);
+  const matchTrial = await evaluate("document.querySelector('#modalContent').innerText.includes('Prove you')");
+  if (!matchTrial) {
+    const diagnostic = await evaluate(`({
+      modal: document.querySelector('#modalContent').innerText,
+      swappedClass: document.querySelector('#decisionButtons').classList.contains('swapped'),
+      acceptLabel: document.querySelector('#acceptButton').innerText
+    })`);
+    throw new Error(`Accept branch diagnostic: ${JSON.stringify(diagnostic)}`);
+  }
+  await evaluate("document.querySelector('.door').click()");
+  await delay(200);
+  const mutual = await evaluate("document.querySelector('#modalContent').innerText.toLowerCase().includes('alarmingly mutual')");
+  await evaluate("document.querySelector('#sendHaha').click()");
+  await delay(800);
+  const secondProfile = await evaluate("document.querySelector('#profileName').textContent");
+
+  await evaluate("document.querySelector('#rejectButton').click()");
+  await delay(200);
+  const rejectionGuilt = await evaluate("document.querySelector('#modalContent').innerText.includes('already told their mom')");
+  await evaluate("document.querySelector('#doubleCrush').click()");
+  await delay(700);
+  const thirdProfile = await evaluate("document.querySelector('#profileName').textContent");
+
+  const generatedProfilesLoaded = await evaluate(`Promise.all([
+    'assets/ravi.png', 'assets/sloane.png', 'assets/beck.png', 'assets/nia.png'
+  ].map((src) => new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(true);
+    image.onerror = () => resolve(false);
+    image.src = src;
+  }))).then((results) => results.every(Boolean))`);
+
+  if (process.env.CAPTURE_VISUALS === "1") {
+    await evaluate("profileIndex = 3; renderProfile()");
+    await call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+    await delay(250);
+    const feedCapture = await call("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+    fs.writeFileSync(path.join(os.tmpdir(), "dealbreaker-feed.png"), Buffer.from(feedCapture.data, "base64"));
+  }
+
+  const report = {
+    initial,
+    onboarding: { review: onboardingReview, complete: onboardingComplete },
+    flows: { matchTrial, mutual, secondProfile, rejectionGuilt, thirdProfile, generatedProfilesLoaded },
+    exceptions,
+    failedRequests,
+  };
+
+  const appDirectory = appUrl.slice(0, appUrl.lastIndexOf("/") + 1);
+  const failedAppRequests = failedRequests.filter((request) => request.url.startsWith(appDirectory));
+
+  const passed = initial.title.includes("DEALBREAKER")
+    && initial.profile === "Marina"
+    && initial.cardVisible
+    && initial.photoLoaded
+    && initial.onboardingVisible
+    && initial.onboardingStep === "Evidence 1 of 5"
+    && onboardingReview.reviewVisible
+    && onboardingReview.sabotageVisible
+    && onboardingComplete.hidden
+    && onboardingComplete.initials === "TL"
+    && onboardingComplete.savedName === "Test Liability"
+    && onboardingComplete.sabotage === "88"
+    && matchTrial
+    && mutual
+    && secondProfile === "Theo"
+    && rejectionGuilt
+    && thirdProfile === "Jules"
+    && generatedProfilesLoaded
+    && exceptions.length === 0
+    && failedAppRequests.length === 0;
+
+  console.log(JSON.stringify({ passed, ...report }, null, 2));
+  socket.close();
+  process.exit(passed ? 0 : 1);
+}
+
+main().catch((error) => {
+  console.error(error.stack || error.message);
+  process.exit(1);
+});

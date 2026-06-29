@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ff5a36" />
+    <meta
+      name="description"
+      content="Dealbreaker — lower your standards, raise your screen time."
+    />
+    <title>DEALBREAKER — dating, unfortunately</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="noise" aria-hidden="true"></div>
+
+    <div class="onboarding-backdrop" id="onboarding" hidden>
+      <section class="onboarding" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
+        <div class="onboarding-scribble scribble-one" aria-hidden="true">TOO MUCH?</div>
+        <div class="onboarding-scribble scribble-two" aria-hidden="true">NOT ENOUGH!</div>
+        <header class="onboarding-head">
+          <a class="brand onboarding-brand" href="#" aria-label="Dealbreaker">
+            <span class="brand-mark" aria-hidden="true"><span>♥</span><i></i></span>
+            <span class="brand-word">DEALBREAKER</span>
+          </a>
+          <div class="onboarding-progress-wrap">
+            <span id="onboardingStepLabel">Evidence 1 of 5</span>
+            <div class="onboarding-progress"><span id="onboardingProgress"></span></div>
+          </div>
+        </header>
+        <div class="onboarding-content" id="onboardingContent"></div>
+      </section>
+    </div>
+
+    <header class="site-header">
+      <a class="brand" href="#" aria-label="Dealbreaker home">
+        <span class="brand-mark" aria-hidden="true">
+          <span>♥</span>
+          <i></i>
+        </span>
+        <span class="brand-word">DEALBREAKER</span>
+      </a>
+
+      <div class="dignity" aria-label="Remaining dignity: 73 percent">
+        <div class="dignity-copy">
+          <span>Remaining dignity</span>
+          <strong id="dignityValue">73%</strong>
+        </div>
+        <div class="dignity-track"><span id="dignityBar"></span></div>
+      </div>
+
+      <nav class="top-nav" aria-label="Primary navigation">
+        <button class="nav-button" data-panel="inbox">
+          <span class="nav-icon" aria-hidden="true">✉</span>
+          <span>Bad decisions</span>
+          <b class="badge">3</b>
+        </button>
+        <button class="avatar-button" data-panel="account" aria-label="Your deeply concerning profile">
+          <span id="avatarInitials">YOU</span>
+          <i class="online-dot"></i>
+        </button>
+      </nav>
+    </header>
+
+    <main class="app-shell">
+      <section class="intro" aria-labelledby="page-title">
+        <div class="eyebrow"><span></span> Fresh disappointments near you</div>
+        <h1 id="page-title">Find your<br /><em>favorite mistake.</em></h1>
+        <p>Our algorithm knows absolutely nothing about love. It does, however, know your screen brightness.</p>
+
+        <div class="live-ticker" aria-label="Live activity">
+          <span class="ticker-pulse"></span>
+          <div>
+            <strong id="tickerName">Someone 2 miles away</strong>
+            <span id="tickerAction">just ignored several warning signs</span>
+          </div>
+        </div>
+
+        <div class="fine-print">
+          <span>By continuing, you agree to be perceived.</span>
+          <button id="termsButton">Regrettable terms ↗</button>
+        </div>
+      </section>
+
+      <section class="dating-stage" aria-label="Potential romantic complications">
+        <div class="orbit orbit-one" aria-hidden="true">NOPE?</div>
+        <div class="orbit orbit-two" aria-hidden="true">MAYBE!</div>
+
+        <article class="profile-card" id="profileCard">
+          <div class="card-sticker" id="cardSticker">Your ex would hate them</div>
+          <div class="photo-wrap" id="photoWrap">
+            <img id="profilePhoto" src="assets/marina.png" alt="Marina in a red coat holding a baguette in a laundromat" />
+            <div class="photo-scrim"></div>
+            <button class="photo-hit photo-prev" id="photoPrev" aria-label="Previous photo"></button>
+            <button class="photo-hit photo-next" id="photoNext" aria-label="Next photo"></button>
+
+            <div class="photo-dots" id="photoDots" aria-label="Photo 1 of 3">
+              <span class="active"></span><span></span><span></span>
+            </div>
+
+            <div class="distance-pill"><span aria-hidden="true">⌁</span> <b id="distance">0.8</b> miles-ish</div>
+
+            <div class="profile-heading">
+              <div class="name-line">
+                <h2><span id="profileName">Marina</span>, <span id="profileAge">29</span></h2>
+                <span class="verified" aria-label="Questionably verified">✓</span>
+              </div>
+              <p id="profileTitle">Professional overthinker · Amateur locksmith</p>
+            </div>
+          </div>
+
+          <div class="profile-body">
+            <div class="trait-row" id="traitRow">
+              <span>♨ Steals your fries</span>
+              <span>↺ Replies eventually</span>
+              <span>☁ Has a podcast idea</span>
+            </div>
+
+            <div class="prompt-block">
+              <span class="prompt-label" id="promptLabel">My most irrational fear</span>
+              <p id="promptAnswer">A waiter saying “enjoy” before I've decided if I will.</p>
+            </div>
+
+            <div class="compatibility">
+              <div class="compat-head">
+                <span>Questionable compatibility</span>
+                <strong id="compatibilityValue">14%</strong>
+              </div>
+              <div class="compat-track"><span id="compatibilityBar"></span></div>
+              <small id="compatibilityReason">Based on both of you owning a chair.</small>
+            </div>
+          </div>
+        </article>
+
+        <div class="decision-zone">
+          <p class="swap-warning"><span id="swapTimer">Buttons swap in 08s</span> <i>•</i> Stay anxious</p>
+          <div class="decision-buttons" id="decisionButtons">
+            <button class="decision reject" id="rejectButton" data-action="reject">
+              <span class="button-icon">×</span>
+              <span><b>Absolutely not</b><small>Make it weird</small></span>
+            </button>
+            <button class="decision accept" id="acceptButton" data-action="accept">
+              <span class="button-icon">♥</span>
+              <span><b>Regrettably, yes</b><small>Risk everything</small></span>
+            </button>
+          </div>
+          <button class="mom-button" id="momButton"><span>☎</span> Ask my mom what she thinks</button>
+        </div>
+      </section>
+
+      <aside class="chaos-sidebar" aria-label="Algorithm nonsense">
+        <section class="chaos-card">
+          <div class="chaos-head">
+            <span>Your chaos forecast</span>
+            <strong>LIVE</strong>
+          </div>
+          <div class="weather-icon" aria-hidden="true">
+            <span class="sun">☀</span><span class="cloud">☁</span><span class="bolt">ϟ</span>
+          </div>
+          <h3>Emotionally<br />partly cloudy</h3>
+          <p>High chance of “haha yeah totally” followed by four hours of analysis.</p>
+          <div class="forecast-stats">
+            <div><span>Ghost risk</span><b>88%</b></div>
+            <div><span>Vibes</span><b>Unclear</b></div>
+          </div>
+        </section>
+
+        <section class="sabotage-card" aria-labelledby="sabotageTitle">
+          <div class="sabotage-head">
+            <span id="sabotageTitle">Recommendation quality</span>
+            <strong id="sabotageStatus">HOSTILE</strong>
+          </div>
+          <h3>Algorithm sabotage</h3>
+          <p id="sabotageCopy">Confusing proximity with chemistry.</p>
+          <input id="sabotageDial" type="range" min="0" max="100" value="66" aria-label="Recommendation sabotage level" />
+          <div class="sabotage-labels"><span>Merely bad</span><span>Personal vendetta</span></div>
+          <button id="worsenButton">Make it somehow worse <span aria-hidden="true">↗</span></button>
+        </section>
+
+        <section class="upgrade-card">
+          <span class="premium-crown">♛</span>
+          <div><b>Make it worse</b><small>Unlock Dealbreaker Plus</small></div>
+          <button id="upgradeButton" aria-label="Learn about Dealbreaker Plus">→</button>
+        </section>
+
+        <p class="sidebar-quote">“I met the person of my dreams. Then the app refreshed.” <span>— Cam, 34</span></p>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <span>© 2026 Dealbreaker, unfortunately.</span>
+      <div><button data-modal="safety">Safety-ish</button><button data-modal="privacy">Privacy theater</button><button data-modal="help">Help?</button></div>
+    </footer>
+
+    <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+
+    <div class="modal-backdrop" id="modalBackdrop" hidden>
+      <section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <button class="modal-close" id="modalClose" aria-label="Close">×</button>
+        <div id="modalContent"></div>
+      </section>
+    </div>
+
+    <aside class="drawer" id="drawer" aria-labelledby="drawerTitle" aria-hidden="true">
+      <div class="drawer-head">
+        <div><span>INBOX</span><h2 id="drawerTitle">Bad decisions</h2></div>
+        <button id="drawerClose" aria-label="Close inbox">×</button>
+      </div>
+      <div class="message-list">
+        <button class="message unread"><span class="message-avatar coral">M</span><span><b>Mystery person</b><small>hey (sent 9 days ago)</small></span><i>9d</i></button>
+        <button class="message unread"><span class="message-avatar blue">?</span><span><b>Your algorithm</b><small>We need to talk.</small></span><i>2h</i></button>
+        <button class="message"><span class="message-avatar yellow">D</span><span><b>Dad joke enjoyer</b><small>Typing for 47 minutes…</small></span><i>now</i></button>
+      </div>
+      <p class="drawer-note">End-to-end encrypted against meaningful conversation.</p>
+    </aside>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -19,6 +19,17 @@ npm start
 
 Then visit `http://localhost:10000`.
 
+## Frontend structure
+
+The browser entry point is `js/main.js`. It composes small ES modules instead of sharing behavior through one application script:
+
+- `state.js` owns the single mutable runtime state object and profile persistence.
+- `dom.js` caches stable DOM references.
+- `api.js` owns authenticated API requests.
+- `feed.js`, `onboarding.js`, and `messaging.js` own their feature behavior and event wiring.
+- `overlays.js` owns modals, toasts, and their delegated actions.
+- `utils.js` contains side-effect-free shared helpers.
+
 ## Test it
 
 ```powershell

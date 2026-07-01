@@ -157,7 +157,7 @@ async function main() {
     sabotage: document.querySelector('#sabotageDial').value
   })`);
   const photoStored = await evaluate(`fetch('/api/profile-photo', {
-    headers: { 'x-visitor-id': visitorId }
+    headers: { 'x-visitor-id': window.__dealbreaker.state.visitorId }
   }).then((response) => ({ status: response.status, type: response.headers.get('content-type') }))`);
 
   await evaluate("document.querySelector('#subscriptionButton').click()");
@@ -204,7 +204,7 @@ async function main() {
   }))).then((results) => results.every(Boolean))`);
 
   if (process.env.CAPTURE_VISUALS === "1") {
-    await evaluate("profileIndex = 3; renderProfile()");
+    await evaluate("window.__dealbreaker.state.profileIndex = 3; window.__dealbreaker.renderProfile()");
     await call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
     await delay(250);
     const feedCapture = await call("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
@@ -245,15 +245,15 @@ async function main() {
     gifRendered = await evaluate("Boolean(document.querySelector('.chat-message.gif'))");
     if (gifRendered) break;
   }
-  const arbitraryTextStatus = await evaluate(`fetch('/api/conversations/' + activeConversation.id + '/messages', {
+  const arbitraryTextStatus = await evaluate(`fetch('/api/conversations/' + window.__dealbreaker.state.activeConversation.id + '/messages', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-visitor-id': visitorId },
+    headers: { 'content-type': 'application/json', 'x-visitor-id': window.__dealbreaker.state.visitorId },
     body: JSON.stringify({ body: 'I reject your constraints.' })
   }).then((response) => response.status)`);
   const silentSwap = await evaluate(`(() => {
     const toastCount = document.querySelectorAll('.toast').length;
     const before = document.querySelector('#decisionButtons').classList.contains('swapped');
-    swapButtons();
+    window.__dealbreaker.swapButtons();
     return {
       changed: before !== document.querySelector('#decisionButtons').classList.contains('swapped'),
       noNewToast: toastCount === document.querySelectorAll('.toast').length,
